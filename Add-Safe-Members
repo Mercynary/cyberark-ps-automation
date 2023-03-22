@@ -13,7 +13,6 @@ use-PASSession $header
 
 #### DEFINE NEW SAFE MEMBER DETAILS ####
 
-
 # Define the group being added to the safe, if adding a group from a domain "@domain.com" must be added to the memberName
 $memberName = ""
 # Define the search in cirteria, i.e. Vault or domain FQDN
