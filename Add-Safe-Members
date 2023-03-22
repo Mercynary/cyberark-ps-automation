@@ -1,0 +1,109 @@
+#### DEFINE USER CONNECTION DETAILS ####
+$userName = "" 
+$identityURL = ""
+$pcloudURL = ""
+
+# Import IdentityAuth.psm1 script from CyberArk Github
+Import-Module 'C:\\IdentityAuth.psm1'
+# Start login to identity tenant using restapi account
+$header = Get-IdentityHeader -psPASFormat -IdentityTenantURL $identityURL -IdentityUserName $userName -PCloudTenantAPIURL $pcloudURL
+# Start PAS Session
+use-PASSession $header
+
+
+#### DEFINE NEW SAFE MEMBER DETAILS ####
+
+
+# Define the group being added to the safe, if adding a group from a domain "@domain.com" must be added to the memberName
+$memberName = ""
+# Define the search in cirteria, i.e. Vault or domain FQDN
+$searchIn = ""
+
+
+# Define custom roles
+
+# Role for use-only safe members, i.e. access to credentials and password rotation by CPM only
+$useOnly = [PSCustomObject]@{
+
+UseAccounts = $true
+ListAccounts = $true
+RetrieveAccounts = $true
+InitiateCPMAccountContent = $true
+
+}
+
+
+# Role for safe managers, i.e. manage accounts in the safe, manage safe members
+$safeManager = [PSCustomObject]@{
+
+AddAccounts = $true
+UpdateAccountContent = $true
+UpdateAccountProperties = $true
+InitiateCPMAccountContent = $true
+SpecifyNextAccountContent = $true
+RenameAccounts = $true
+UnlockAccounts = $true
+ManageSafe = $true
+ManageSafeMembers = $true
+ViewAuditLog = $true
+ViewSafeMembers = $true
+
+}
+
+# Role for full CyberArk Administrator, i.e. complete access to safe
+$fullAdmin = [PSCustomObject]@{
+
+UseAccounts = $true
+ListAccounts = $true
+RetrieveAccounts = $true
+AddAccounts = $true
+UpdateAccountContent = $true
+UpdateAccountProperties = $true
+InitiateCPMAccountContent = $true
+SpecifyNextAccountContent = $true
+RenameAccounts = $true
+DeleteAccounts = $true
+UnlockAccounts = $true
+ManageSafe = $true
+ManageSafeMembers = $true
+BackupSafe = $true
+ViewAuditLog = $true
+ViewSafeMembers = $true
+RequestsAuthorizationLevel = $true
+AccessWithoutConfirmation = $true
+CreateFolders = $true
+DeleteFolders = $true
+MoveAccountsAndFolders = $true
+RequestAuthorizationLevel1 = $true
+ReuestAuthorizationLevel2 = $true
+
+}
+
+# Define the safes to add the specific group and role
+$safeList = ""
+
+# Foreach loop for adding the group to the required safes.
+foreach($safe in $safeList){
+    
+    
+    #Update the role to the desired role defined above.
+    $role = $useOnly
+
+    # Try block for running the Add-PASSafeMember command
+    try {
+      
+      # By default this script has -memberType set to 'Group', if adding a specific USER, change -memberType to User
+      Add-PASSafeMember -SafeName $safe -MemberName $memberName -SearchIn $searchIn -memberType Group  -UseAccounts $true -ListAccounts $true -RetrieveAccounts $true
+
+    }
+
+    # Catch block if there are any errors
+    catch {
+        
+        # Write the error out to console
+        Write-Host ("Failed to add $memberName to $safe - $_.Exception.Message - Check error log") -ForegroundColor Red
+
+    }
+
+
+}
