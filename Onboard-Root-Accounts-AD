@@ -1,0 +1,45 @@
+#### DEFINE USER CONNECTION DETAILS ####
+$userName = "" 
+$identityURL = ""
+$pcloudURL = ""
+
+# Import IdentityAuth script from CyberArk Github
+Import-Module 'C:\IdentityAuth.psm1'
+# Start login to identity tenant using restapi account
+$header = Get-IdentityHeader -psPASFormat -IdentityTenantURL $identityURL -IdentityUserName $userName -PCloudTenantAPIURL $pcloudURL
+# Start PAS Session
+use-PASSession $header
+
+# Get all existing root account addresses
+$rootInCyberArk =  Get-PASAccount -safeName "Safe_Name" -search "root" | select address -ExpandProperty address
+
+# Get all AD UNIX servers from specific OU, select for name and append domain for FQDN address
+$AdUnixServers = Get-ADComputer -Filter * -SearchBase "OU=Test,DC=com" | Select Name -ExpandProperty Name | foreach {$_ + ".test.com"}
+
+# Remove UNIX servers in CyberArk from $AdUnixServers array, into variable $newUnixServers
+# This creates an array with only servers in AD that have not had their root account onboarded into CyberArk
+
+$newUnixServers = $AdUnixServers | Where-Object {$rootInCyberArk -notcontains $_}
+
+# Set to sudo on reconcile
+$platformAccountProperties = @{"UseSudoOnReconcile"="Yes"}
+
+
+# Foreach loop to onboard the new root accounts into CyberArk
+# If the specified platform is not set to auto rotate passwords on add, initiating a change via CPM is necessary to rotate the root password
+# Reconcile could be done to get the current password into CyberArk
+foreach ($newUnixServer in $newUnixServers){
+
+try {
+
+    Add-PASAccount -safe "Safe_Name" -platformID "Platform_ID" -address $newUnixServer -userName "root" -automaticManagementEnabled $true -platformAccountProperties $platformAccountProperties
+
+    }
+
+catch {
+
+    Write-Host ("Failed to add root account for $AdServerAddress to Safe_Name, $_.Exception.Message - Check error log in C:\temp") -ForegroundColor Red | Out-File -FilePath C:\temp\root-onboard-errors.txt -Append
+
+}
+
+}
